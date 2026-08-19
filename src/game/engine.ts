@@ -3,6 +3,7 @@ import { PhysicsWorld, type WheelInfo } from "./physics";
 import { buildCar, syncWheelVisuals, type CarVisuals } from "./car";
 import { City } from "./city";
 import { Sky } from "./sky";
+import { PostFX } from "./postfx";
 import { ChaseCamera } from "./camera";
 import { InputManager } from "./input";
 import { pushTelemetry } from "./store";
@@ -18,6 +19,7 @@ export class GameEngine {
   private physics!: PhysicsWorld;
   private city!: City;
   private sky!: Sky;
+  private postfx!: PostFX;
   private car!: CarVisuals;
   private chaseCam!: ChaseCamera;
   private input = new InputManager();
@@ -102,6 +104,7 @@ export class GameEngine {
     this.renderer.setSize(w, h);
     this.camera.aspect = w / h;
     this.camera.updateProjectionMatrix();
+    this.postfx?.setSize(w, h);
   };
 
   private onKey = (e: KeyboardEvent) => {
@@ -121,6 +124,7 @@ export class GameEngine {
     this.city = new City(this.scene, this.physics);
     this.car = buildCar(0x2f6fe4);
     this.scene.add(this.car.group);
+    this.postfx = new PostFX(this.renderer, this.scene, this.camera);
 
     this.input.attach();
     this.loop();
@@ -190,7 +194,7 @@ export class GameEngine {
       performance.now(),
     );
 
-    this.renderer.render(this.scene, this.camera);
+    this.postfx.render(dt);
   };
 
   private isFlipped() {
@@ -230,6 +234,7 @@ export class GameEngine {
     window.removeEventListener("keydown", this.onKey);
     this.input.detach();
     this.city?.dispose();
+    this.postfx?.composer.dispose();
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement === this.container) {
       this.container.removeChild(this.renderer.domElement);
