@@ -1,7 +1,11 @@
 import * as THREE from "three";
 import * as RAPIER from "@dimforge/rapier3d-compat";
 import type { PhysicsWorld } from "./physics";
-import { asphaltTexture, sidewalkTexture, roadMarkingTexture, facadeTexture } from "./textures";
+import {
+  roadMarkingTexture,
+  enhanceWithNormals,
+  type TextureSet,
+} from "./textures";
 
 /**
  * Procedural city: a large bounded grid (~10km x 10km ≈ 99 km²).
@@ -41,6 +45,7 @@ function hash2(ix: number, iz: number, seed = 0) {
 export class City {
   private scene: THREE.Scene;
   private physics: PhysicsWorld;
+  private textures: TextureSet;
 
   private roadGeo!: THREE.BufferGeometry;
   private roadMaterial!: THREE.MeshStandardMaterial;
@@ -52,29 +57,37 @@ export class City {
 
   private dummy = new THREE.Object3D();
 
-  constructor(scene: THREE.Scene, physics: PhysicsWorld) {
+  constructor(scene: THREE.Scene, physics: PhysicsWorld, textures: TextureSet) {
     this.scene = scene;
     this.physics = physics;
+    this.textures = textures;
     this.buildRoads();
     this.buildPools();
   }
 
   // ---- Roads & sidewalks (built once) ----
   private buildRoads() {
-    const asphalt = asphaltTexture(1);
-    const sidewalk = sidewalkTexture(1);
+    const normals = enhanceWithNormals(this.textures);
     const marking = roadMarkingTexture();
 
     const roadMat = new THREE.MeshStandardMaterial({
-      map: asphalt,
+      map: this.textures.asphalt,
       roughness: 0.95,
       metalness: 0.0,
     });
+    if (normals.asphaltNormal) {
+      roadMat.normalMap = normals.asphaltNormal;
+      roadMat.normalScale.set(0.6, 0.6);
+    }
     const sideMat = new THREE.MeshStandardMaterial({
-      map: sidewalk,
+      map: this.textures.sidewalk,
       roughness: 0.9,
       metalness: 0.0,
     });
+    if (normals.sidewalkNormal) {
+      sideMat.normalMap = normals.sidewalkNormal;
+      sideMat.normalScale.set(0.4, 0.4);
+    }
     const markMat = new THREE.MeshStandardMaterial({
       map: marking,
       roughness: 0.8,
@@ -201,14 +214,20 @@ export class City {
   private buildPools() {
     const geo = new THREE.BoxGeometry(1, 1, 1);
     geo.translate(0, 0.5, 0); // origin at base
+    const normals = enhanceWithNormals(this.textures);
 
     for (let v = 0; v < FACADE_VARIANTS; v++) {
-      const tex = facadeTexture(v);
+      const tex = this.textures.facades[v % this.textures.facades.length];
       const mat = new THREE.MeshStandardMaterial({
         map: tex,
         roughness: 0.85,
         metalness: 0.15,
       });
+      const n = normals.facadesNormal[v % normals.facadesNormal.length];
+      if (n) {
+        mat.normalMap = n;
+        mat.normalScale.set(0.5, 0.5);
+      }
       const mesh = new THREE.InstancedMesh(geo, mat, Math.ceil(MAX_BUILDINGS / FACADE_VARIANTS));
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.castShadow = true;

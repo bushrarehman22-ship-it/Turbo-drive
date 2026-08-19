@@ -8,6 +8,7 @@ import { TrafficSystem } from "./traffic";
 import { CheckpointSystem } from "./checkpoints";
 import { ChaseCamera } from "./camera";
 import { InputManager } from "./input";
+import { loadTextureSet, type TextureSet } from "./textures";
 import { pushTelemetry, useGameStore } from "./store";
 import type { CameraMode } from "./store";
 
@@ -19,6 +20,7 @@ export class GameEngine {
   private camera: THREE.PerspectiveCamera;
 
   private physics!: PhysicsWorld;
+  private textures!: TextureSet;
   private city!: City;
   private sky!: Sky;
   private postfx!: PostFX;
@@ -73,19 +75,18 @@ export class GameEngine {
       20000,
     );
 
-    // Base ground (grass) + city pavement slab
-    this.buildGround();
-
     this.chaseCam = new ChaseCamera(this.camera);
 
     window.addEventListener("resize", this.onResize);
     window.addEventListener("keydown", this.onKey);
   }
 
-  private buildGround() {
+  private buildGround(textures: TextureSet) {
+    const grassTex = textures.grass;
+    grassTex.repeat.set(400, 400);
     const grass = new THREE.Mesh(
       new THREE.PlaneGeometry(30000, 30000),
-      new THREE.MeshStandardMaterial({ color: 0x3a4630, roughness: 1 }),
+      new THREE.MeshStandardMaterial({ map: grassTex, roughness: 1 }),
     );
     grass.rotation.x = -Math.PI / 2;
     grass.position.y = -0.02;
@@ -124,8 +125,10 @@ export class GameEngine {
 
   async start() {
     this.physics = await new PhysicsWorld().init();
+    this.textures = await loadTextureSet();
+    this.buildGround(this.textures);
     this.sky = new Sky(this.scene);
-    this.city = new City(this.scene, this.physics);
+    this.city = new City(this.scene, this.physics, this.textures);
     this.car = buildCar(0x2f6fe4);
     this.scene.add(this.car.group);
     this.postfx = new PostFX(this.renderer, this.scene, this.camera);

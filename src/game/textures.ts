@@ -118,6 +118,134 @@ function mulberry32(a: number) {
   };
 }
 
+// ---------------------------------------------------------------------------
+// AI texture loading (with procedural fallback + derived normal maps)
+// ---------------------------------------------------------------------------
+
+export interface TextureSet {
+  asphalt: THREE.Texture;
+  sidewalk: THREE.Texture;
+  grass: THREE.Texture;
+  facades: THREE.Texture[];
+}
+
+function loadImage(url: string): Promise<HTMLImageElement | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+function toTexture(img: HTMLImageElement, repeat: number, srgb = true): THREE.Texture {
+  const t = new THREE.Texture(img);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.repeat.set(repeat, repeat);
+  t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+  t.anisotropy = 4;
+  t.needsUpdate = true;
+  return t;
+}
+
+/**
+ * Derive a tangent-space normal map from an albedo's luminance (cheap
+ * height-field bump). Returns null if the image can't be read.
+ */
+function deriveNormalMap(texture: THREE.Texture, strength = 2.0): THREE.Texture | null {
+  try {
+    const img = texture.image as HTMLImageElement;
+    if (!img || !img.width) return null;
+    const w = img.width;
+    const h = img.height;
+    const c = document.createElement("canvas");
+    c.width = w;
+    c.height = h;
+    const ctx = c.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, w, h).data;
+    const height = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) {
+      const j = i * 4;
+      height[i] = (data[j] * 0.299 + data[j + 1] * 0.587 + data[j + 2] * 0.114) / 255;
+    }
+    const out = ctx.createImageData(w, h);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const xl = height[y * w + Math.max(0, x - 1)];
+        const xr = height[y * w + Math.min(w - 1, x + 1)];
+        const yu = height[Math.max(0, y - 1) * w + x];
+        const yd = height[Math.min(h - 1, y + 1) * w + x];
+        let nx = (xl - xr) * strength;
+        let ny = (yu - yd) * strength;
+        const nz = 1;
+        const len = Math.hypot(nx, ny, nz);
+        nx /= len;
+        ny /= len;
+        const o = (y * w + x) * 4;
+        out.data[o] = (nx * 0.5 + 0.5) * 255;
+        out.data[o + 1] = (ny * 0.5 + 0.5) * 255;
+        out.data[o + 2] = (1 * 0.5 + 0.5) * 255;
+        out.data[o + 3] = 255;
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+    const nt = new THREE.CanvasTexture(c);
+    nt.wrapS = nt.wrapT = THREE.RepeatWrapping;
+    nt.repeat.copy(texture.repeat);
+    nt.colorSpace = THREE.NoColorSpace;
+    nt.needsUpdate = true;
+    return nt;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadTextureSet(): Promise<TextureSet> {
+  const files: [keyof TextureSet | string, string, number, () => THREE.CanvasTexture][] = [
+    ["asphalt", "/textures/asphalt_color.jpg", 1, () => asphaltTexture(1)],
+    ["sidewalk", "/textures/sidewalk_color.jpg", 1, () => sidewalkTexture(1)],
+    ["grass", "/textures/grass_color.jpg", 1, () => grassTexture()],
+    ["facade0", "/textures/facade_glass.jpg", 1, () => facadeTexture(0)],
+    ["facade1", "/textures/facade_brick.jpg", 1, () => facadeTexture(1)],
+    ["facade2", "/textures/facade_concrete.jpg", 1, () => facadeTexture(2)],
+    ["facade3", "/textures/facade_stone.jpg", 1, () => facadeTexture(3)],
+  ];
+
+  const results = await Promise.all(
+    files.map(async ([key, url, repeat, fallback]) => {
+      const img = await loadImage(url);
+      if (img) {
+        const tex = toTexture(img, repeat);
+        return [key as string, tex] as const;
+      }
+      return [key as string, fallback()] as const;
+    }),
+  );
+
+  const get = (k: string) => results.find(([key]) => key === k)![1];
+
+  return {
+    asphalt: get("asphalt"),
+    sidewalk: get("sidewalk"),
+    grass: get("grass"),
+    facades: [get("facade0"), get("facade1"), get("facade2"), get("facade3")],
+  };
+}
+
+/** Attach derived normal maps to bumpy surfaces for extra realism. */
+export function enhanceWithNormals(set: TextureSet) {
+  const apply = (tex: THREE.Texture, scale: number) => {
+    const n = deriveNormalMap(tex, scale);
+    return n;
+  };
+  return {
+    asphaltNormal: apply(set.asphalt, 3.5),
+    sidewalkNormal: apply(set.sidewalk, 2.0),
+    facadesNormal: set.facades.map((f) => apply(f, 1.6)),
+  };
+}
+
 export function grassTexture(): THREE.CanvasTexture {
   const { c, ctx } = makeCanvas(256, 256);
   ctx.fillStyle = "#3e4a2f";
