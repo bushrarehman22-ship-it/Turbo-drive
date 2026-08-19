@@ -64,8 +64,11 @@ src/
 ## Roadmap
 
 - [x] Core engine, physics, procedural city, day/night
-- [ ] AI traffic + pedestrians
-- [ ] Checkpoints / timed laps
-- [ ] Post-processing (bloom, SSAO)
-- [ ] AI-generated PBR textures (asphalt, facades, skybox)
-- [ ] Engine audio
+- [x] AI traffic (kinematic cars the player can collide with)
+- [x] Checkpoints / timed laps
+- [x] Post-processing (SSAO + bloom + ACES)
+- [x] AI-generated PBR textures (asphalt, sidewalks, 4 facade styles, grass)
+- [x] Synthesized engine audio
+- [ ] Pedestrians
+- [ ] HDR environment / image-based sky
+- [ ] More vehicle handling tuning & drift model

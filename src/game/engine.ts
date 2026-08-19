@@ -8,6 +8,7 @@ import { TrafficSystem } from "./traffic";
 import { CheckpointSystem } from "./checkpoints";
 import { ChaseCamera } from "./camera";
 import { InputManager } from "./input";
+import { getAudio } from "./audio";
 import { loadTextureSet, type TextureSet } from "./textures";
 import { pushTelemetry, useGameStore } from "./store";
 import type { CameraMode } from "./store";
@@ -211,10 +212,11 @@ export class GameEngine {
     // Telemetry -> HUD
     const speedKmh = this.physics.speedMs() * 3.6;
     const gear = this.computeGear(speedKmh);
+    const rpm = this.computeRpm(speedKmh);
     pushTelemetry(
       {
         speedKmh,
-        rpm: this.computeRpm(speedKmh),
+        rpm,
         gear,
         timeOfDay: this.timeOfDay,
         clockLabel: this.clockLabel(this.timeOfDay),
@@ -222,6 +224,10 @@ export class GameEngine {
       },
       performance.now(),
     );
+
+    // Engine audio (synthesized)
+    if (controls.throttle > 0.01 || controls.brake > 0.01) getAudio().ensureStarted();
+    getAudio().update(rpm, controls.throttle, dt);
 
     this.postfx.render(dt);
   };
@@ -266,6 +272,7 @@ export class GameEngine {
     this.traffic?.dispose();
     this.checkpoints?.dispose();
     this.postfx?.composer.dispose();
+    getAudio().dispose();
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement === this.container) {
       this.container.removeChild(this.renderer.domElement);

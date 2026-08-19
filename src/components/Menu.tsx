@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useGameStore } from "@/game/store";
+import { getAudio } from "@/game/audio";
 
 export default function Menu() {
   const started = useGameStore((s) => s.started);
@@ -26,6 +27,7 @@ export default function Menu() {
 
         <button
           onClick={() => {
+            getAudio().ensureStarted();
             setStarted(true);
             setVisible(false);
           }}
