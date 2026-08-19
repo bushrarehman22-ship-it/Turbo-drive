@@ -9,6 +9,11 @@ export default function HUD() {
   const clockLabel = useGameStore((s) => s.clockLabel);
   const timeOfDay = useGameStore((s) => s.timeOfDay);
   const cameraMode = useGameStore((s) => s.cameraMode);
+  const checkpoint = useGameStore((s) => s.checkpoint);
+  const totalCheckpoints = useGameStore((s) => s.totalCheckpoints);
+  const lapMs = useGameStore((s) => s.lapMs);
+  const lastLapMs = useGameStore((s) => s.lastLapMs);
+  const bestLapMs = useGameStore((s) => s.bestLapMs);
 
   const speed = Math.round(speedKmh);
 
@@ -57,6 +62,36 @@ export default function HUD() {
         </div>
       </div>
 
+      {/* Lap / checkpoint panel */}
+      <div className="glass absolute right-6 top-24 w-44 rounded-2xl px-4 py-3 text-right">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] uppercase tracking-widest text-white/40">
+            Checkpoint
+          </span>
+          <span className="led text-lg font-bold text-cyan-300">
+            {checkpoint}/{totalCheckpoints}
+          </span>
+        </div>
+        <div className="mt-2 space-y-1 text-xs">
+          <div className="flex justify-between">
+            <span className="text-white/40">Lap</span>
+            <span className="led tabular-nums text-white">{formatLap(lapMs)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-white/40">Last</span>
+            <span className="tabular-nums text-white/70">
+              {lastLapMs ? formatLap(lastLapMs) : "—"}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-white/40">Best</span>
+            <span className="led tabular-nums text-amber-300">
+              {bestLapMs ? formatLap(bestLapMs) : "—"}
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Controls help */}
       <div className="glass absolute left-6 top-6 rounded-2xl px-5 py-3 text-xs leading-relaxed text-white/60">
         <div className="mb-1 font-semibold text-white/80">Controls</div>
@@ -70,4 +105,14 @@ export default function HUD() {
 
 function isNight(t: number) {
   return t > 0.72 || t < 0.28;
+}
+
+function formatLap(ms: number) {
+  const total = Math.max(0, ms);
+  const m = Math.floor(total / 60000);
+  const s = Math.floor((total % 60000) / 1000);
+  const msPart = Math.floor((total % 1000) / 10);
+  return m > 0
+    ? `${m}:${String(s).padStart(2, "0")}.${String(msPart).padStart(2, "0")}`
+    : `${s}.${String(msPart).padStart(2, "0")}s`;
 }

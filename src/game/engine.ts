@@ -4,9 +4,11 @@ import { buildCar, syncWheelVisuals, type CarVisuals } from "./car";
 import { City } from "./city";
 import { Sky } from "./sky";
 import { PostFX } from "./postfx";
+import { TrafficSystem } from "./traffic";
+import { CheckpointSystem } from "./checkpoints";
 import { ChaseCamera } from "./camera";
 import { InputManager } from "./input";
-import { pushTelemetry } from "./store";
+import { pushTelemetry, useGameStore } from "./store";
 import type { CameraMode } from "./store";
 
 const CAMERA_MODES: CameraMode[] = ["chase", "hood", "cockpit", "orbit"];
@@ -20,6 +22,8 @@ export class GameEngine {
   private city!: City;
   private sky!: Sky;
   private postfx!: PostFX;
+  private traffic!: TrafficSystem;
+  private checkpoints!: CheckpointSystem;
   private car!: CarVisuals;
   private chaseCam!: ChaseCamera;
   private input = new InputManager();
@@ -125,6 +129,9 @@ export class GameEngine {
     this.car = buildCar(0x2f6fe4);
     this.scene.add(this.car.group);
     this.postfx = new PostFX(this.renderer, this.scene, this.camera);
+    this.traffic = new TrafficSystem(this.scene, this.physics, new THREE.Vector3(0, 0, 0));
+    this.checkpoints = new CheckpointSystem(this.scene);
+    useGameStore.setState({ totalCheckpoints: this.checkpoints.total });
 
     this.input.attach();
     this.loop();
@@ -167,6 +174,24 @@ export class GameEngine {
     // Stream city chunks around the car
     this.city.update(this.chassisPos);
 
+    // Traffic
+    this.traffic.update(dt, this.chassisPos);
+
+    // Checkpoints + lap timing
+    const nowMs = performance.now();
+    const lap = this.checkpoints.update(this.chassisPos, nowMs);
+    if (lap !== null) {
+      const st = useGameStore.getState();
+      const best = st.bestLapMs === 0 || lap < st.bestLapMs ? lap : st.bestLapMs;
+      useGameStore.setState({
+        lastLapMs: lap,
+        bestLapMs: best,
+        checkpoint: 0,
+      });
+    } else {
+      useGameStore.setState({ checkpoint: this.checkpoints.currentIndex() });
+    }
+
     // Camera
     this.chaseCam.update(
       dt,
@@ -190,6 +215,7 @@ export class GameEngine {
         gear,
         timeOfDay: this.timeOfDay,
         clockLabel: this.clockLabel(this.timeOfDay),
+        lapMs: this.checkpoints.elapsedMs(nowMs),
       },
       performance.now(),
     );
@@ -234,6 +260,8 @@ export class GameEngine {
     window.removeEventListener("keydown", this.onKey);
     this.input.detach();
     this.city?.dispose();
+    this.traffic?.dispose();
+    this.checkpoints?.dispose();
     this.postfx?.composer.dispose();
     this.renderer.dispose();
     if (this.renderer.domElement.parentElement === this.container) {

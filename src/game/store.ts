@@ -21,6 +21,7 @@ export interface GameState {
   totalCheckpoints: number;
   bestLapMs: number;
   lastLapMs: number;
+  lapMs: number;
 
   // Actions (mostly used by HUD/UI)
   setRunning: (v: boolean) => void;
@@ -47,6 +48,7 @@ export const useGameStore = create<GameState>((set) => ({
   totalCheckpoints: 8,
   bestLapMs: 0,
   lastLapMs: 0,
+  lapMs: 0,
 
   setRunning: (v) => set({ running: v }),
   setStarted: (v) => set({ started: v }),
@@ -68,6 +70,7 @@ export const telemetry = {
   gear: "N",
   timeOfDay: 0.55,
   clockLabel: "12:00",
+  lapMs: 0,
 };
 
 let lastHudPush = 0;
@@ -82,6 +85,7 @@ export function pushTelemetry(t: typeof telemetry, nowMs: number) {
       gear: t.gear,
       timeOfDay: t.timeOfDay,
       clockLabel: t.clockLabel,
+      lapMs: t.lapMs,
     });
   }
 }
