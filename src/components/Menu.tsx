@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { useGameStore } from "@/game/store";
 import { getAudio } from "@/game/audio";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export default function Menu() {
+  const mobile = useIsMobile();
   const started = useGameStore((s) => s.started);
   const setStarted = useGameStore((s) => s.setStarted);
   const [visible, setVisible] = useState(!started);
@@ -36,14 +38,25 @@ export default function Menu() {
           Start Driving
         </button>
 
-        <div className="mt-5 grid grid-cols-2 gap-2 text-left text-xs text-white/50">
-          <div>🚗 W / ↑ — Accelerate</div>
-          <div>🛑 S / ↓ — Brake</div>
-          <div>↔️ A D — Steer</div>
-          <div>🌀 Space — Handbrake</div>
-          <div>🎥 C — Camera</div>
-          <div>🔄 R — Reset</div>
-        </div>
+        {mobile ? (
+          <div className="mt-5 grid grid-cols-2 gap-2 text-left text-xs text-white/50">
+            <div>🕹️ Drag left — Steer</div>
+            <div>⛽ Hold GAS — Accelerate</div>
+            <div>🛑 Hold BRAKE — Brake</div>
+            <div>🌀 HB — Handbrake</div>
+            <div>🎥 — Camera</div>
+            <div>↺ — Reset car</div>
+          </div>
+        ) : (
+          <div className="mt-5 grid grid-cols-2 gap-2 text-left text-xs text-white/50">
+            <div>🚗 W / ↑ — Accelerate</div>
+            <div>🛑 S / ↓ — Brake</div>
+            <div>↔️ A D — Steer</div>
+            <div>🌀 Space — Handbrake</div>
+            <div>🎥 C — Camera</div>
+            <div>🔄 R — Reset</div>
+          </div>
+        )}
       </div>
     </div>
   );

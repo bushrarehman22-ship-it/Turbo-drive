@@ -63,7 +63,7 @@ export class Sky {
   };
   private scene: THREE.Scene;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, shadowSize = 2048) {
     this.scene = scene;
 
     // Gradient dome
@@ -106,7 +106,7 @@ export class Sky {
     // shadow frustum stays tight and crisp; only the visible disc sits far.
     this.sun = new THREE.DirectionalLight(0xffffff, DAY.sunIntensity);
     this.sun.castShadow = true;
-    this.sun.shadow.mapSize.set(2048, 2048);
+    this.sun.shadow.mapSize.set(shadowSize, shadowSize);
     this.sun.shadow.camera.near = 10;
     this.sun.shadow.camera.far = 400;
     const sc = 110;

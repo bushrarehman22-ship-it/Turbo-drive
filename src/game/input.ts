@@ -1,5 +1,7 @@
+import { touchState } from "./touch";
+
 /**
- * Keyboard + gamepad input with analog smoothing.
+ * Keyboard + gamepad + touch input with analog smoothing.
  * Exposes normalized control values consumed by the vehicle system.
  */
 export interface ControlState {
@@ -127,6 +129,14 @@ export class InputManager {
     handbrake = handbrake || this.keyDown("Space");
     reset = reset || this.keyDown("KeyR");
 
+    // Touch (virtual controls) — merge, touch takes precedence via max/max-magnitude.
+    if (touchState.throttle > 0) targetThrottle = Math.max(targetThrottle, touchState.throttle);
+    if (touchState.brake > 0) targetBrake = Math.max(targetBrake, touchState.brake);
+    if (Math.abs(touchState.steer) > Math.abs(targetSteer)) targetSteer = touchState.steer;
+    handbrake = handbrake || touchState.handbrake;
+    reset = reset || touchState.resetQueued;
+    touchState.resetQueued = false;
+
     // Smooth toward targets for analog-feeling controls.
     const ts = 1 - Math.exp(-dt * 12);
     const rs = 1 - Math.exp(-dt * 8);
@@ -140,9 +150,11 @@ export class InputManager {
     this.state.handbrake = handbrake;
     this.state.reset = reset;
 
-    // Edge-triggered camera toggle.
+    // Edge-triggered camera toggle (keyboard C + touch button).
     const camNow = this.keyDown("KeyC");
-    this.state.cameraNext = camNow && !this.lastCamToggle;
+    const camTouch = touchState.cameraQueued;
+    touchState.cameraQueued = false;
+    this.state.cameraNext = (camNow && !this.lastCamToggle) || camTouch;
     this.lastCamToggle = camNow;
 
     return this.state;

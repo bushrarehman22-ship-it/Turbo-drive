@@ -91,12 +91,13 @@ export class TrafficSystem {
   private scene: THREE.Scene;
   private physics: PhysicsWorld;
   private cars: TrafficCar[] = [];
-  private readonly count = 26;
+  private readonly count: number;
   private tmp = new THREE.Vector3();
 
-  constructor(scene: THREE.Scene, physics: PhysicsWorld, spawn: THREE.Vector3) {
+  constructor(scene: THREE.Scene, physics: PhysicsWorld, spawn: THREE.Vector3, count = 26) {
     this.scene = scene;
     this.physics = physics;
+    this.count = count;
     for (let i = 0; i < this.count; i++) {
       this.cars.push(this.spawnCar(spawn, 600));
     }

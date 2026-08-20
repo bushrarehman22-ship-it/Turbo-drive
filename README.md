@@ -14,7 +14,9 @@ built with **Next.js**, **Three.js** (WebGL) and **Rapier** physics.
 - **Visuals-first rendering** — PBR materials, ACES tone mapping, soft
   shadows, exponential fog, gradient sky, and a full **day/night cycle**.
 - **Gameplay** — free drive, chase/hood/cockpit/orbit cameras, HUD
-  speedometer, keyboard + gamepad input.
+  speedometer, keyboard + gamepad input, and **mobile touch controls**
+  (virtual steering joystick + gas/brake/handbrake pedals) with a
+  mobile-optimized HUD and reduced render budget.
 
 ## Tech stack
 
@@ -35,6 +37,10 @@ built with **Next.js**, **Three.js** (WebGL) and **Rapier** physics.
 | Handbrake | `Space` |
 | Reset car | `R` |
 | Cycle camera | `C` |
+
+**Mobile (touch):** drag the left joystick to steer, hold the **GAS** /
+**BRAKE** pedals, tap **HB** for handbrake, and use the 🎥 / ↺ buttons for
+camera and reset. Controls auto-detect touch devices and small screens.
 
 ## Running
 

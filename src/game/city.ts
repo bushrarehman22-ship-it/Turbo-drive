@@ -22,8 +22,6 @@ export const CITY_HALF = 5000; // half-extent of the city (10km across)
 
 const CHUNK_BLOCKS = 4;
 const CHUNK_SIZE = CHUNK_BLOCKS * SPACING; // ~296m
-const ACTIVE_RADIUS = CHUNK_SIZE * 2.5; // ~740m
-const MAX_BUILDINGS = 6000;
 const FACADE_VARIANTS = 4;
 
 interface BuildingSlot {
@@ -56,11 +54,21 @@ export class City {
   private loadedChunks = new Set<string>();
 
   private dummy = new THREE.Object3D();
+  private maxBuildings: number;
+  private activeRadius: number;
 
-  constructor(scene: THREE.Scene, physics: PhysicsWorld, textures: TextureSet) {
+  constructor(
+    scene: THREE.Scene,
+    physics: PhysicsWorld,
+    textures: TextureSet,
+    quality: "high" | "low" = "high",
+  ) {
     this.scene = scene;
     this.physics = physics;
     this.textures = textures;
+    // Mobile budget: fewer instanced buildings, tighter streaming radius.
+    this.maxBuildings = quality === "low" ? 2400 : 6000;
+    this.activeRadius = quality === "low" ? CHUNK_SIZE * 2 : CHUNK_SIZE * 2.5;
     this.buildRoads();
     this.buildPools();
   }
@@ -228,14 +236,14 @@ export class City {
         mat.normalMap = n;
         mat.normalScale.set(0.5, 0.5);
       }
-      const mesh = new THREE.InstancedMesh(geo, mat, Math.ceil(MAX_BUILDINGS / FACADE_VARIANTS));
+      const mesh = new THREE.InstancedMesh(geo, mat, Math.ceil(this.maxBuildings / FACADE_VARIANTS));
       mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       this.scene.add(mesh);
       this.pools.push(mesh);
       this.freeLists.push(
-        Array.from({ length: Math.ceil(MAX_BUILDINGS / FACADE_VARIANTS) }, (_, i) => i),
+        Array.from({ length: Math.ceil(this.maxBuildings / FACADE_VARIANTS) }, (_, i) => i),
       );
     }
   }
@@ -253,7 +261,7 @@ export class City {
     const cbz = Math.floor(carPos.z / SPACING);
     const ccx = Math.floor(cbx / CHUNK_BLOCKS);
     const ccz = Math.floor(cbz / CHUNK_BLOCKS);
-    const radiusChunks = Math.ceil(ACTIVE_RADIUS / CHUNK_SIZE);
+    const radiusChunks = Math.ceil(this.activeRadius / CHUNK_SIZE);
 
     // Unload far chunks
     for (const key of Array.from(this.loadedChunks)) {

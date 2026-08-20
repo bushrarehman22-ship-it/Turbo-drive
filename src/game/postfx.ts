@@ -18,6 +18,7 @@ export class PostFX {
     renderer: THREE.WebGLRenderer,
     scene: THREE.Scene,
     camera: THREE.PerspectiveCamera,
+    mobile = false,
   ) {
     const w = renderer.domElement.clientWidth;
     const h = renderer.domElement.clientHeight;
@@ -29,12 +30,16 @@ export class PostFX {
     this.composer.addPass(new RenderPass(scene, camera));
 
     // Ambient occlusion — softens flat-lit surfaces, grounds objects.
-    const ssao = new SSAOPass(scene, camera, w, h);
-    ssao.kernelRadius = 8;
-    ssao.minDistance = 0.05;
-    ssao.maxDistance = 0.2;
-    ssao.output = SSAOPass.OUTPUT.Default;
-    this.composer.addPass(ssao);
+    // Skipped on mobile: SSAO is the single most expensive pass and the
+    // fill-rate savings matter more than the subtle contact shading.
+    if (!mobile) {
+      const ssao = new SSAOPass(scene, camera, w, h);
+      ssao.kernelRadius = 8;
+      ssao.minDistance = 0.05;
+      ssao.maxDistance = 0.2;
+      ssao.output = SSAOPass.OUTPUT.Default;
+      this.composer.addPass(ssao);
+    }
 
     // Bloom — glow on headlights, taillights, sun, bright reflections.
     this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.35, 0.6, 0.6);

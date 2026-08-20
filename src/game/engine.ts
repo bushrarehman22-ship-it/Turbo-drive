@@ -9,6 +9,7 @@ import { CheckpointSystem } from "./checkpoints";
 import { ChaseCamera } from "./camera";
 import { InputManager } from "./input";
 import { getAudio } from "./audio";
+import { isMobileDevice } from "./device";
 import { loadTextureSet, type TextureSet } from "./textures";
 import { pushTelemetry, useGameStore } from "./store";
 import type { CameraMode } from "./store";
@@ -46,6 +47,7 @@ export class GameEngine {
   private dayLengthSec = 240; // 4-minute full day (fast for demo)
 
   private cameraMode: CameraMode = "chase";
+  private mobile = false;
   private clock = new THREE.Clock();
   private raf = 0;
   private disposed = false;
@@ -53,11 +55,15 @@ export class GameEngine {
 
   constructor(container: HTMLElement) {
     this.container = container;
+    this.mobile = isMobileDevice();
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
       powerPreference: "high-performance",
     });
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Lower pixel ratio on mobile to keep the fill-rate within reach.
+    this.renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, this.mobile ? 1.5 : 2),
+    );
     this.renderer.setSize(container.clientWidth, container.clientHeight);
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -79,7 +85,6 @@ export class GameEngine {
     this.chaseCam = new ChaseCamera(this.camera);
 
     window.addEventListener("resize", this.onResize);
-    window.addEventListener("keydown", this.onKey);
   }
 
   private buildGround(textures: TextureSet) {
@@ -113,12 +118,6 @@ export class GameEngine {
     this.postfx?.setSize(w, h);
   };
 
-  private onKey = (e: KeyboardEvent) => {
-    if (e.code === "KeyC") {
-      this.cycleCamera();
-    }
-  };
-
   private cycleCamera() {
     const idx = CAMERA_MODES.indexOf(this.cameraMode);
     this.cameraMode = CAMERA_MODES[(idx + 1) % CAMERA_MODES.length];
@@ -128,12 +127,17 @@ export class GameEngine {
     this.physics = await new PhysicsWorld().init();
     this.textures = await loadTextureSet();
     this.buildGround(this.textures);
-    this.sky = new Sky(this.scene);
-    this.city = new City(this.scene, this.physics, this.textures);
+    this.sky = new Sky(this.scene, this.mobile ? 1024 : 2048);
+    this.city = new City(this.scene, this.physics, this.textures, this.mobile ? "low" : "high");
     this.car = buildCar(0x2f6fe4);
     this.scene.add(this.car.group);
-    this.postfx = new PostFX(this.renderer, this.scene, this.camera);
-    this.traffic = new TrafficSystem(this.scene, this.physics, new THREE.Vector3(0, 0, 0));
+    this.postfx = new PostFX(this.renderer, this.scene, this.camera, this.mobile);
+    this.traffic = new TrafficSystem(
+      this.scene,
+      this.physics,
+      new THREE.Vector3(0, 0, 0),
+      this.mobile ? 12 : 26,
+    );
     this.checkpoints = new CheckpointSystem(this.scene);
     useGameStore.setState({ totalCheckpoints: this.checkpoints.total });
 
@@ -153,6 +157,7 @@ export class GameEngine {
 
     // Input
     const controls = this.input.update(dt);
+    if (controls.cameraNext) this.cycleCamera();
 
     // Physics
     this.physics.step(dt, {
@@ -266,7 +271,6 @@ export class GameEngine {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     window.removeEventListener("resize", this.onResize);
-    window.removeEventListener("keydown", this.onKey);
     this.input.detach();
     this.city?.dispose();
     this.traffic?.dispose();

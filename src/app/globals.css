@@ -14,10 +14,13 @@ body {
     sans-serif;
   -webkit-user-select: none;
   user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
 }
 
 canvas {
   display: block;
+  touch-action: none;
 }
 
 /* Speedometer / HUD glass panels */
