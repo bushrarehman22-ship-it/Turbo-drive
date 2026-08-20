@@ -216,13 +216,13 @@ export class GameEngine {
 
     // Telemetry -> HUD
     const speedKmh = this.physics.speedMs() * 3.6;
-    const gear = this.computeGear(speedKmh);
-    const rpm = this.computeRpm(speedKmh);
+    const drive = this.physics.getDrivetrain(this.physics.speedMs());
+    const rpmK = drive.rpm / 1000; // thousands, for HUD + audio
     pushTelemetry(
       {
         speedKmh,
-        rpm,
-        gear,
+        rpm: rpmK,
+        gear: drive.gear,
         timeOfDay: this.timeOfDay,
         clockLabel: this.clockLabel(this.timeOfDay),
         lapMs: this.checkpoints.elapsedMs(nowMs),
@@ -232,7 +232,7 @@ export class GameEngine {
 
     // Engine audio (synthesized)
     if (controls.throttle > 0.01 || controls.brake > 0.01) getAudio().ensureStarted();
-    getAudio().update(rpm, controls.throttle, dt);
+    getAudio().update(rpmK, controls.throttle, dt);
 
     this.postfx.render(dt);
   };
@@ -240,24 +240,6 @@ export class GameEngine {
   private isFlipped() {
     const up = new THREE.Vector3(0, 1, 0).applyQuaternion(this.chassisQuat);
     return up.y < 0.2;
-  }
-
-  private computeGear(speedKmh: number) {
-    if (speedKmh < 2) return "N";
-    const gears = [0, 12, 28, 48, 74, 105, 140, 185, 240];
-    for (let i = gears.length - 1; i >= 1; i--) {
-      if (speedKmh >= gears[i]) return String(i);
-    }
-    return "1";
-  }
-
-  private computeRpm(speedKmh: number) {
-    // Rough rev simulation for the HUD needle (returns thousands of RPM)
-    const maxSpeed = 240;
-    const idle = 0.9;
-    const redline = 7.2;
-    const g = Math.min(1, speedKmh / maxSpeed);
-    return idle + g * (redline - idle) + Math.sin(speedKmh * 0.8) * 0.12;
   }
 
   private clockLabel(t: number) {
